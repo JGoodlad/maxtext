@@ -106,7 +106,9 @@ def main(config):
         rngs={"aqt": init_rng},
     )
 
-    max_logging.log(f"{golden_logits[0] =}, {full_train_logits[0, 0, :]=}")
+    full_train_logits = jax.experimental.multihost_utils.process_allgather(full_train_logits)
+    max_logging.log(f"{golden_logits[0]=}")
+    max_logging.log(f"{full_train_logits[0, 0, :]=}")
     assert jax.numpy.allclose(
             full_train_logits[0, :, :], golden_logits, rtol=1e-01, atol=1e-01, equal_nan=False
         )

@@ -59,7 +59,14 @@ save_config_to_gcs: False
 
 # Activation dtypes.
 dtype: "bfloat16"
-quantization: "" #defaults to no quantization, i.e. bf16. possible alternative setting is 'int8' or use fp8 to run with 8-bit floating-point GeMMs on NVIDIA GPUs.
+# defaults to no quantization, i.e. bf16. Possible alternative settings are as follows:
+# 'int8' for dynamic range quantization using 8-bits
+# 'int8w' for weights only quantization using 8-bits
+# 'int4w' for weights only quantization using 4-bits
+# 'intmp' for mixed precision quantization based on config file
+# 'fp8' for 8-bit floating-point GeMMs on NVIDIA GPUs.
+quantization: ""
+quant_cfg_path: "" # Path to file with quantization config - only used for mixed precision.
 quantize_kvcache: False
 # Valid kv_quant_axis values:
 #   - "" is valid only when quantize_kvcache is False

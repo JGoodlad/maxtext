@@ -32,6 +32,7 @@ from jax.experimental import shard_map
 import max_logging
 
 try:
+  # import megablox as mblx 
   from jax.experimental.pallas.ops.tpu import megablox as mblx
 except ImportError:
   max_logging.log("JAX megablox is available for TPU only.")
@@ -278,6 +279,7 @@ class MoeBlock(nn.Module):
     kernel_axes: Tuple with axes to apply kernel function.
     weight_dtype: Type for the weights.
     dtype: Type for the dense layer.
+    quant: Optional quantization config, no quantization if None.
   """
 
   config: Config
@@ -288,6 +290,7 @@ class MoeBlock(nn.Module):
   kernel_axes: Tuple[str, ...]
   weight_dtype: DType = jnp.float32
   dtype: DType = jnp.float32
+  quant: Optional[Quant] = None
 
   def generate_kernels(self, num_experts, emb_dim, mlp_dim):
 
@@ -365,6 +368,7 @@ class MoeBlock(nn.Module):
 
       inputs = inputs.astype(self.dtype)
       kernel = kernel.astype(self.weight_dtype)
+      # is_quant = True if self.quant else False
       output = mblx.gmm(lhs=inputs,
                         rhs=kernel,
                         group_sizes=group_sizes,
@@ -411,6 +415,7 @@ class MoeBlock(nn.Module):
             self.num_experts,
             dtype=self.dtype,
             weight_dtype=self.weight_dtype,
+            quant=self.quant,
             kernel_init=self.kernel_init,
             kernel_axes=self.kernel_axes,
             name="gate")(inputs)
@@ -434,14 +439,15 @@ class MoeBlock(nn.Module):
       return self.megablox(inputs, gate_logits, cfg, w0_kernel, w1_kernel, wo_kernel)
     else:
       max_logging.log("Running MoE matmul implementation.")
+      einsum = jnp.einsum if self.quant is None else self.quant.einsum()
       with jax.named_scope("wi_0"):
-        layer_w0 = jnp.einsum("BLE,NEH -> BLNH", inputs, w0_kernel)
+        layer_w0 = einsum("BLE,NEH -> BLNH", inputs, w0_kernel)
       with jax.named_scope("wi_1"):
-        layer_w1 = jnp.einsum("BLE,NEH -> BLNH", inputs, w1_kernel)
+        layer_w1 = einsum("BLE,NEH -> BLNH", inputs, w1_kernel)
       layer_w0_act = _convert_to_activation_function(cfg.mlp_activations[0])(layer_w0)
       layer_multiply = jnp.multiply(layer_w0_act, layer_w1)
       with jax.named_scope("wo"):
-        intermediate_layer = jnp.einsum("BLNH,NHE -> BLNE", layer_multiply, wo_kernel)
+        intermediate_layer = einsum("BLNH,NHE -> BLNE", layer_multiply, wo_kernel)
       with jax.named_scope("w_sum"):
         output = jnp.einsum("BLNE,BLN -> BLE", intermediate_layer, weights)
 

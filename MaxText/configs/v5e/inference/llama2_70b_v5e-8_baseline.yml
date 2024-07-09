@@ -1,0 +1,15 @@
+base_config: "base.yml"
+
+logical_axis_rules: [
+                      ['activation_heads', ['tensor']],
+                      ['activation_kv_heads', ['tensor']],
+                      ['activation_embed', ['tensor']],
+                      ['activation_mlp', ['tensor']],
+                      ['activation_vocab', ['tensor']],
+                      ['mlp', ['tensor']],
+                      ['vocab', ['tensor']],
+                      ['norm', ['tensor']],
+                      ['heads', ['tensor']],
+                      ['kv_heads', ['tensor']],
+                      ['cache_heads', ['tensor']],
+                    ]

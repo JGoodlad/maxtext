@@ -49,7 +49,6 @@ bias_init = initializers.default_bias_init
 RMSNorm = normalizations.RMSNorm
 Quant = quantizations.AqtQuantization
 
-BATCH = "activation_batch"
 
 def _convert_to_activation_function(fn_or_string: Union[str, Callable[..., Any]]) -> Callable[..., Any]:
   """Convert a string to an activation function."""
@@ -207,7 +206,7 @@ class MlpBlock(nn.Module):
           name="mlp_layer_norm",
           dtype=cfg.dtype,
           weight_dtype=cfg.weight_dtype,
-          kernel_axes=("norm",),
+          kernel_axes=(common_types.NORM,),
           epsilon=cfg.normalization_layer_epsilon,
       )(inputs)
 
@@ -220,7 +219,7 @@ class MlpBlock(nn.Module):
           dtype=self.dtype,
           weight_dtype=self.weight_dtype,
           kernel_init=self.kernel_init,
-          kernel_axes=("embed", "num_activations", "mlp"),
+          kernel_axes=(common_types.EMBED, "num_activations", common_types.MLP),
           name="wi",
           quant=self.quant,
           use_bias=self.use_bias,
@@ -236,7 +235,7 @@ class MlpBlock(nn.Module):
             dtype=self.dtype,
             weight_dtype=self.weight_dtype,
             kernel_init=self.kernel_init,
-            kernel_axes=("embed", "mlp"),
+            kernel_axes=(common_types.EMBED, common_types.MLP),
             name=dense_name,
             quant=self.quant,
             use_bias=self.use_bias,
@@ -251,13 +250,13 @@ class MlpBlock(nn.Module):
     x = nn.Dropout(rate=self.intermediate_dropout_rate, broadcast_dims=(-2,))(
         x, deterministic=deterministic
     )  # Broadcast along length.
-    x = nn.with_logical_constraint(x, (BATCH, "activation_length", "activation_mlp"))
+    x = nn.with_logical_constraint(x, (common_types.ACTIVATION_BATCH, common_types.ACTIVATION_LENGTH, common_types.ACTIVATION_MLP))
     output = DenseGeneral(
         inputs.shape[-1],
         dtype=self.dtype,
         weight_dtype=self.weight_dtype,
         kernel_init=self.kernel_init,
-        kernel_axes=("mlp", "embed"),
+        kernel_axes=(common_types.MLP, common_types.EMBED),
         name="wo",
         quant=self.quant,
         use_bias=self.use_bias,

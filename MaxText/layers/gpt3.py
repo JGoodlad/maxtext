@@ -43,10 +43,6 @@ Config = common_types.Config
 DType = common_types.DType
 Mesh = common_types.Mesh
 AxisNames = common_types.AxisNames
-BATCH = common_types.BATCH
-LENGTH = common_types.LENGTH
-HEAD = common_types.HEAD
-D_KV = common_types.D_KV
 
 DenseGeneral = linears.DenseGeneral
 NdInitializer = initializers.NdInitializer
@@ -148,10 +144,10 @@ class Gpt3MultiHeadAttention(nn.Module):
   kv_quant: Optional[KVQuant] = None
   use_bias: bool = True
 
-  query_axis_names: AxisNames = (BATCH, LENGTH, HEAD, D_KV)
-  key_axis_names: AxisNames = (BATCH, LENGTH, HEAD, D_KV)
-  value_axis_names: AxisNames = (BATCH, LENGTH, HEAD, D_KV)
-  out_axis_names: AxisNames = (BATCH, LENGTH, HEAD, D_KV)
+  query_axis_names: AxisNames = (common_types.ACTIVATION_BATCH, common_types.ACTIVATION_LENGTH, common_types.ACTIVATION_QUERY_HEADS, common_types.ACTIVATION_KV)
+  key_axis_names: AxisNames = (common_types.ACTIVATION_BATCH, common_types.ACTIVATION_LENGTH, common_types.ACTIVATION_KV_HEADS, common_types.ACTIVATION_KV)
+  value_axis_names: AxisNames = (common_types.ACTIVATION_BATCH, common_types.ACTIVATION_LENGTH, common_types.ACTIVATION_KV_HEADS, common_types.ACTIVATION_KV)
+  out_axis_names: AxisNames = (common_types.ACTIVATION_BATCH, common_types.ACTIVATION_LENGTH, common_types.ACTIVATION_QUERY_HEADS, common_types.ACTIVATION_KV)
 
 
   def qkv_projection(self, inputs: Array, proj_name: str):

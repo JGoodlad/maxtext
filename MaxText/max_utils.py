@@ -922,3 +922,59 @@ def print_mem_stats(label:str):
       print(f"\tUsing (GB) {used} / {limit} ({used/limit:%}) on {d}")
   except (RuntimeError, KeyError):
     print("\tMemstats unavailable.")
+
+
+def calculate_total_bytes_per_chip(params) -> int:
+  """Calculate params' physical bytes on an addressable chip."""
+  def calculate_leaf_params_bytes_per_chip(arr):
+    shard = arr.addressable_shards[0]
+    return shard.data.nbytes
+
+  params_sizes_per_chip = jax.tree_util.tree_map(calculate_leaf_params_bytes_per_chip, params)
+  total_parameters_per_chip = jax.tree_util.tree_reduce(lambda x, y: x + y, params_sizes_per_chip)
+  return total_parameters_per_chip
+
+
+def calculate_total_params_across_chips(params) -> tuple[int, int]:
+  """Calculate params' physical sizes across all chips."""
+  total_params_per_chip = calculate_total_params_per_chip(params)
+  n_chips = len(params.addressable_shards)
+  return total_params_per_chip * n_chips, n_chips
+
+
+def calculate_total_bytes_across_chips(params) -> tuple[int, int]:
+  """Calculate params' physical bytes across all chips."""
+  total_bytes_per_chip = calculate_total_bytes_per_chip(params)
+  n_chips = len(params.addressable_shards)
+  return total_bytes_per_chip * n_chips, n_chips
+
+
+def _debug_pytree(pytree):
+  """Debug pytree sizing and sharding across chips."""
+  if isinstance(pytree, flax.linen.spmd.LogicallyPartitioned):
+    pytree = pytree.value
+  print(f"\tshape: {pytree.shape}")
+  print(f"\tsharding: {pytree.sharding}")
+  total_logical_sizes, total_logical_bytes, _ = summarize_size_from_pytree(pytree)
+  total_physical_sizes_across_chips, n_chips = calculate_total_params_across_chips(pytree)
+  total_physical_bytes_across_chip, _ = calculate_total_bytes_across_chips(pytree)
+  print(f"\ttotal_logical_sizes: {total_logical_sizes}")
+  print(f"\ttotal_logical_bytes: {total_logical_bytes}", )
+  print(f"\tn_chips: {n_chips}")
+  print(f"\ttotal_physical_sizes_across_chips: {total_physical_sizes_across_chips}")
+  print(f"\ttotal_physical_bytes_across_chip: {total_physical_bytes_across_chip}")
+
+
+def debug_result(result):
+  """Debug result pytrees' sizing and sharding across chips."""
+  for result_key in result.keys():
+    result_element = result[result_key]
+    if result_key == "cache":
+      singler_layer_kv_cache = result["cache"]["decoder"]["layers_0"]["self_attention"]["AttentionOp_0"]
+      for cache_key in singler_layer_kv_cache.keys():
+        cache_element = singler_layer_kv_cache[cache_key]
+        print(f"{cache_key}:")
+        _debug_pytree(cache_element)
+    else:
+      print(f"{result_key}:")
+      _debug_pytree(result_element)

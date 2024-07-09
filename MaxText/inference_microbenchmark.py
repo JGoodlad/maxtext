@@ -79,6 +79,12 @@ def prefill_insert_benchmark_loop(
   """Inner loop for benchmarking prefill and insert step."""
   prof = profiler.Profiler(config, profile_name)
   prof.activate()
+
+  prefill_result, _ = engine.prefill(params=params, padded_tokens=tokens, true_length=true_length)
+  max_utils.debug_result(prefill_result)
+  jax.block_until_ready(prefill_result)
+  max_utils.delete_pytree(prefill_result)
+
   start = datetime.datetime.now()
   for i in range(iters):
     prefill_result, _ = engine.prefill(params=params, padded_tokens=tokens, true_length=true_length)
